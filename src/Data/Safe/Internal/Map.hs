@@ -45,6 +45,8 @@ instance AllValues Eq schema => Eq (OrdMap schema) where
   Empty == Empty = True
   Node _ a xs == Node _ b ys = a == b && xs == ys
 
+-- | Pretty print an 'OrdMap' given pretty printing function for keys.
+-- This can be used to write 'Show' instances for 'OrdMap' with custom keys.
 ppOrdMap :: (AllKeys kc schema, AllValues Show schema)
   => proxy kc -> (forall k. kc k => Key (k :: key) -> String) -> OrdMap (schema :: Schema key) -> String
 ppOrdMap _ _ Empty = "empty"
