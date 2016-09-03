@@ -1,4 +1,3 @@
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -10,9 +9,8 @@
 {-# LANGUAGE UndecidableInstances #-}
 module Data.Safe.Map.Schema where
 
-import Data.Kind (Type, Constraint)
+import Data.Kind (Type)
 import Data.Proxy
-import GHC.TypeLits (TypeError, ErrorMessage(..))
 
 -- | A schema for a map-like container.
 type Schema key = [(key, Type)]
