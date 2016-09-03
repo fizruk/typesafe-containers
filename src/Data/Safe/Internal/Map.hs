@@ -41,6 +41,10 @@ data OrdMap (schema :: Schema key) where
   Empty :: OrdMap '[]
   Node  :: Key k -> v -> OrdMap schema -> OrdMap ('(k, v) ': schema)
 
+instance AllValues Eq schema => Eq (OrdMap schema) where
+  Empty == Empty = True
+  Node _ a xs == Node _ b ys = a == b && xs == ys
+
 ppOrdMap :: (AllKeys kc schema, AllValues Show schema)
   => proxy kc -> (forall k. kc k => Key (k :: key) -> String) -> OrdMap (schema :: Schema key) -> String
 ppOrdMap _ _ Empty = "empty"
