@@ -128,8 +128,11 @@ instance CanInsert' (Compare k y) k v ('(y, b) ': schema) => CanInsert k v ('(y,
 class CanInsert' (cmp :: Ordering) (x :: key) (a :: Type) (schema :: Schema key) where
   insert' :: Proxy cmp -> Key x -> a -> OrdMap schema -> OrdMap (Insert x a schema)
 
-instance (Insert x a schema ~ ('(x, a) ': schema)) => CanInsert' LT x a schema
-  where insert' _ = Node
+instance (Insert x a schema ~ ('(x, a) ': schema)) => CanInsert' LT x a schema where
+  insert' _ = Node
+
+instance (Insert x a ('(y, b) ': schema) ~ ('(x, a) ': schema)) => CanInsert' EQ x a ('(y, b) ': schema) where
+  insert' _ x a (Node _ _ schema) = Node x a schema
 
 instance (Insert x a ('(y, b) ': schema) ~ ('(y, b) ': Insert x a schema), CanInsert x a schema)
   => CanInsert' GT x a ('(y, b) ': schema) where
