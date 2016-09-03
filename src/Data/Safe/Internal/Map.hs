@@ -12,7 +12,8 @@
 module Data.Safe.Internal.Map where
 
 import Data.Kind (Type)
-import Data.Monoid ((<>))
+import Data.Semigroup
+import Data.Monoid (Monoid(..))
 import Data.Proxy
 import GHC.TypeLits
 
@@ -44,6 +45,25 @@ data OrdMap (schema :: Schema key) where
 instance AllValues Eq schema => Eq (OrdMap schema) where
   Empty == Empty = True
   Node _ a xs == Node _ b ys = a == b && xs == ys
+
+instance (AllValues Ord schema, AllValues Eq schema) => Ord (OrdMap schema) where
+  Empty `compare` Empty = EQ
+  Node _ a xs `compare` Node _ b ys = compare a b <> compare xs ys
+
+instance AllValues Semigroup schema => Semigroup (OrdMap schema) where
+  Empty <> Empty = Empty
+  Node k a xs <> Node _ b ys = Node k (a <> b) (xs <> ys)
+
+  stimes _ Empty = Empty
+  stimes n (Node k a xs) = Node k (stimes n a) (stimes n xs)
+
+instance Monoid (OrdMap '[]) where
+  mempty = empty
+  Empty `mappend` Empty = Empty
+
+instance (Monoid v, Monoid (OrdMap schema)) => Monoid (OrdMap ('(k, v) ': schema)) where
+  mempty = Node (mkKey :: Key k) mempty mempty
+  Node k a xs `mappend` Node _ b ys = Node k (a `mappend` b) (xs `mappend` ys)
 
 -- | Pretty print an 'OrdMap' given pretty printing function for keys.
 -- This can be used to write 'Show' instances for 'OrdMap' with custom keys.
