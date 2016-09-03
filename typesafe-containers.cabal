@@ -14,6 +14,7 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
+  ghc-options:  -Wall -Wno-unticked-promoted-constructors
   hs-source-dirs:      src
   exposed-modules:
     Data.Safe.Map

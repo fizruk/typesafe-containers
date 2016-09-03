@@ -11,11 +11,19 @@
 module Data.Safe.Map.Schema where
 
 import Data.Kind (Type, Constraint)
-import Data.Proxy (Proxy)
+import Data.Proxy
 import GHC.TypeLits (TypeError, ErrorMessage(..))
 
 -- | A schema for a map-like container.
 type Schema key = [(key, Type)]
+
+-- | The key constructor for the map.
+-- This is effectively just a 'Proxy'.
+type Key = Proxy
+
+-- | Create a key.
+mkKey :: Key k
+mkKey = Proxy
 
 -- | Delete a key from a 'Schema'.
 type family DeleteKey (k :: key) (schema :: Schema key) :: Schema key where

@@ -11,7 +11,6 @@
 module Data.Safe.Internal.Map where
 
 import Data.Kind (Type, Constraint)
-import Data.Proxy
 import GHC.TypeLits (TypeError, ErrorMessage(..))
 
 import Data.Safe.Map.Schema
@@ -25,14 +24,14 @@ type Map schema = OrdMap (Unord schema)
 empty :: Map '[]
 empty = Empty
 
-singleton :: Proxy k -> v -> Map '[ '(k, v) ]
+singleton :: Key k -> v -> Map '[ '(k, v) ]
 singleton k v = Node k v empty
 
 -- * Map with keys ordered
 
 data OrdMap (schema :: Schema key) where
   Empty :: OrdMap '[]
-  Node  :: Proxy k -> v -> OrdMap schema -> OrdMap ('(k, v) ': schema)
+  Node  :: Key k -> v -> OrdMap schema -> OrdMap ('(k, v) ': schema)
 
 -- ** Ordered submaps
 
@@ -49,20 +48,20 @@ type HasPair k v schema = OrdSubmap '[ '(k, v) ] schema
 
 -- ** Query
 
-getPair :: forall k v schema. HasPair k v schema => Proxy k -> OrdMap schema -> (Proxy k, v)
+getPair :: forall k v schema. HasPair k v schema => Key k -> OrdMap schema -> (Key k, v)
 getPair _ m = case submap m :: Map '[ '(k, v) ] of
   Node p v Empty -> (p, v)
 
-get :: HasPair k v schema => Proxy k -> OrdMap schema -> v
+get :: HasPair k v schema => Key k -> OrdMap schema -> v
 get k = snd . getPair k
 
 -- * Insertion
 
 class CanInsert (k :: key) (v :: Type) (schema :: Schema key) where
-  insert :: Proxy k -> v -> OrdMap schema -> OrdMap (Insert k v schema)
+  insert :: Key k -> v -> OrdMap schema -> OrdMap (Insert k v schema)
 
 class CanInsert' (prepend :: Bool) (x :: key) (a :: Type) (schema :: Schema key) where
-  insert' :: Proxy prepend -> Proxy x -> a -> OrdMap schema -> OrdMap (Insert x a schema)
+  insert' :: Key prepend -> Key x -> a -> OrdMap schema -> OrdMap (Insert x a schema)
 
 instance (Insert x a schema ~ ('(x, a) ': schema)) => CanInsert' True x a schema
   where insert' _ = Node
@@ -73,5 +72,5 @@ instance (Insert x a ('(y, b) ': schema) ~ ('(y, b) ': Insert x a schema), CanIn
 
 instance CanInsert k v '[] where insert k v _ = singleton k v
 instance CanInsert' (k < y) k v ('(y, b) ': schema) => CanInsert k v ('(y, b) ': schema) where
-  insert = insert' (Proxy :: Proxy (k < y))
+  insert = insert' (mkKey :: Key (k < y))
 
