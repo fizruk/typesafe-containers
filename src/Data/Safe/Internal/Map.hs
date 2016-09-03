@@ -54,6 +54,11 @@ instance (AllKeys KnownSymbol (p ': ps), AllValues Show (p ': ps)) => Show (OrdM
     where
       ppKey k = "(mkKey :: Key " <> show (symbolVal k) <> ")"
 
+instance (AllKeys KnownNat (p ': ps), AllValues Show (p ': ps)) => Show (OrdMap ((p ': ps) :: Schema Nat)) where
+  show = ppOrdMap (Proxy :: Proxy KnownNat) ppKey
+    where
+      ppKey k = "(mkKey :: Key " <> show (natVal k) <> ")"
+
 -- ** Ordered submaps
 
 -- | Slice the 'OrdMap' to select only certain keys.
