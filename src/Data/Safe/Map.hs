@@ -4,6 +4,8 @@ module Data.Safe.Map (
 
   -- * Query
   get,
+  (?:),
+  getPair,
 
   -- * Construction
   empty,
@@ -11,6 +13,7 @@ module Data.Safe.Map (
 
   -- * Insertion
   insert,
+  (=:),
 ) where
 
 import Data.Safe.Internal.Map

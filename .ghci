@@ -1,0 +1,4 @@
+:set -XDataKinds
+:set -Wno-type-defaults
+
+import Data.Function ((&))

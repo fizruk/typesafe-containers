@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeInType #-}
@@ -11,30 +12,51 @@
 module Data.Safe.Internal.Map where
 
 import Data.Kind (Type)
-import GHC.TypeLits (TypeError, ErrorMessage(..))
+import Data.Monoid ((<>))
+import Data.Proxy
+import GHC.TypeLits
 
 import Data.Safe.Map.Schema
 
 -- * 'Map' type
 
+-- | A 'Map' with a fixed schema.
 type Map schema = OrdMap (Unord schema)
 
 -- ** Construction
 
+-- | An empty 'Map'.
 empty :: Map '[]
 empty = Empty
 
+-- | A singleton 'Map'.
 singleton :: Key k -> v -> Map '[ '(k, v) ]
-singleton k v = Node k v empty
+singleton k v = insert k v empty
 
 -- * Map with keys ordered
 
+-- | A map with keys ordered.
+-- Ordered keys allow for faster type-level operations (like merging and inserting).
 data OrdMap (schema :: Schema key) where
   Empty :: OrdMap '[]
   Node  :: Key k -> v -> OrdMap schema -> OrdMap ('(k, v) ': schema)
 
+ppOrdMap :: (AllKeys kc schema, AllValues Show schema)
+  => proxy kc -> (forall k. kc k => Key (k :: key) -> String) -> OrdMap (schema :: Schema key) -> String
+ppOrdMap _ _ Empty = "empty"
+ppOrdMap pkc ppKey (Node k v m) = ppOrdMap pkc ppKey m <> " & " <> ppKey k <> " =: " <> show v
+
+instance Show (OrdMap '[]) where
+  show _ = "empty"
+
+instance (AllKeys KnownSymbol (p ': ps), AllValues Show (p ': ps)) => Show (OrdMap ((p ': ps) :: Schema Symbol)) where
+  show = ppOrdMap (Proxy :: Proxy KnownSymbol) ppKey
+    where
+      ppKey k = "(mkKey :: Key " <> show (symbolVal k) <> ")"
+
 -- ** Ordered submaps
 
+-- | Slice the 'OrdMap' to select only certain keys.
 class OrdSubmap (sub :: Schema key) (schema :: Schema key) where
   submap :: OrdMap schema -> OrdMap sub
 
@@ -44,33 +66,44 @@ instance OrdSubmap xs ys => OrdSubmap xs (y ': ys) where submap (Node _ _ m) = s
 instance TypeError (Text "key " :<>: ShowType k :<>: Text " is missing")
   => OrdSubmap ('(k, v) ': schema) '[] where submap = error "impossible"
 
+-- | A constraint ensuring that a @schema@ has the key @k@ with value type @v@.
 type HasPair k v schema = OrdSubmap '[ '(k, v) ] schema
 
 -- ** Query
 
+-- | Extract a key-value pair from a 'Map'.
 getPair :: forall k v schema. HasPair k v schema => Key k -> OrdMap schema -> (Key k, v)
 getPair _ m = case submap m :: Map '[ '(k, v) ] of
   Node p v Empty -> (p, v)
 
+-- | Extract a value for a given key.
 get :: HasPair k v schema => Key k -> OrdMap schema -> v
 get k = snd . getPair k
+
+-- | A convenient alias for flipped 'get'.
+(?:) :: HasPair k v schema => OrdMap schema -> Key k -> v
+(?:) = flip get
 
 -- * Insertion
 
 class CanInsert (k :: key) (v :: Type) (schema :: Schema key) where
+  -- | Insert a key-value pair into a 'Map'.
   insert :: Key k -> v -> OrdMap schema -> OrdMap (Insert k v schema)
 
-class CanInsert' (prepend :: Bool) (x :: key) (a :: Type) (schema :: Schema key) where
-  insert' :: Key prepend -> Key x -> a -> OrdMap schema -> OrdMap (Insert x a schema)
+instance CanInsert k v '[] where insert k v _ = Node k v empty
+instance CanInsert' (Compare k y) k v ('(y, b) ': schema) => CanInsert k v ('(y, b) ': schema) where
+  insert = insert' (Proxy :: Proxy (Compare k y))
 
-instance (Insert x a schema ~ ('(x, a) ': schema)) => CanInsert' True x a schema
+class CanInsert' (cmp :: Ordering) (x :: key) (a :: Type) (schema :: Schema key) where
+  insert' :: Proxy cmp -> Key x -> a -> OrdMap schema -> OrdMap (Insert x a schema)
+
+instance (Insert x a schema ~ ('(x, a) ': schema)) => CanInsert' LT x a schema
   where insert' _ = Node
 
 instance (Insert x a ('(y, b) ': schema) ~ ('(y, b) ': Insert x a schema), CanInsert x a schema)
-  => CanInsert' False x a ('(y, b) ': schema) where
+  => CanInsert' GT x a ('(y, b) ': schema) where
     insert' _ x a (Node y b schema) = Node y b (insert x a schema)
 
-instance CanInsert k v '[] where insert k v _ = singleton k v
-instance CanInsert' (k < y) k v ('(y, b) ': schema) => CanInsert k v ('(y, b) ': schema) where
-  insert = insert' (mkKey :: Key (k < y))
-
+-- | A convenient alias for 'insert'.
+(=:) :: CanInsert k v schema => Key k -> v -> OrdMap schema -> OrdMap (Insert k v schema)
+(=:) = insert
