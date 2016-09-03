@@ -92,13 +92,13 @@ class OrdSubmap (sub :: Schema key) (schema :: Schema key) where
   submap :: OrdMap schema -> OrdMap sub
 
 instance OrdSubmap '[] '[] where submap = id
-instance OrdSubmap xs ys => OrdSubmap (p ': xs) (p ': ys) where submap (Node k v m) = Node k v (submap m)
+instance {-# OVERLAPPING #-} OrdSubmap xs ys => OrdSubmap (p ': xs) (p ': ys) where submap (Node k v m) = Node k v (submap m)
 instance OrdSubmap xs ys => OrdSubmap xs (y ': ys) where submap (Node _ _ m) = submap m
 instance TypeError (Text "key " :<>: ShowType k :<>: Text " is missing")
   => OrdSubmap ('(k, v) ': schema) '[] where submap = error "impossible"
 
 -- | A constraint ensuring that a @schema@ has the key @k@ with value type @v@.
-type HasPair k v schema = OrdSubmap '[ '(k, v) ] schema
+type HasPair k v schema = (OrdSubmap '[ '(k, v) ] schema, Contains k v schema)
 
 -- ** Query
 

@@ -32,6 +32,10 @@ type family AllValues (c :: Type -> Constraint) (schema :: Schema key) :: Constr
   AllValues c '[] = ()
   AllValues c ('(k, v) ': schema) = (c v, AllValues c schema)
 
+type family Contains (k :: key) (v :: Type) (schema :: Schema key) :: Constraint where
+  Contains k v ('(k, u) ': schema) = (v ~ u)
+  Contains k v (_ ': schema) = Contains k v schema
+
 -- | Delete a key from a 'Schema'.
 type family DeleteKey (k :: key) (schema :: Schema key) :: Schema key where
   DeleteKey k '[] = '[]
