@@ -10,19 +10,22 @@
 module Data.Safe.Map.Schema where
 
 import Data.Kind (Type, Constraint)
-import Data.Proxy
 import GHC.TypeLits (Symbol, Nat, CmpSymbol, CmpNat)
+import GHC.OverloadedLabels
 
 -- | A schema for a map-like container.
 type Schema key = [(key, Type)]
 
 -- | The key constructor for the map.
--- This is effectively just a 'Proxy'.
-type Key = Proxy
+-- This is essentially just a proxy.
+data Key k = Key
+
+instance (s ~ k) => IsLabel (s :: Symbol) (Key k) where
+  fromLabel _ = Key
 
 -- | Create a key.
 mkKey :: Key k
-mkKey = Proxy
+mkKey = Key
 
 type family AllKeys (c :: key -> Constraint) (schema :: Schema key) :: Constraint where
   AllKeys c '[] = ()
