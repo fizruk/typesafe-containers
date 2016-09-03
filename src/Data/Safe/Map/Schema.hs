@@ -9,8 +9,9 @@
 {-# LANGUAGE UndecidableInstances #-}
 module Data.Safe.Map.Schema where
 
-import Data.Kind (Type)
+import Data.Kind (Type, Constraint)
 import Data.Proxy
+import GHC.TypeLits (Symbol, Nat, CmpSymbol, CmpNat)
 
 -- | A schema for a map-like container.
 type Schema key = [(key, Type)]
@@ -23,6 +24,14 @@ type Key = Proxy
 mkKey :: Key k
 mkKey = Proxy
 
+type family AllKeys (c :: key -> Constraint) (schema :: Schema key) :: Constraint where
+  AllKeys c '[] = ()
+  AllKeys c ('(k, v) ': schema) = (c k, AllKeys c schema)
+
+type family AllValues (c :: Type -> Constraint) (schema :: Schema key) :: Constraint where
+  AllValues c '[] = ()
+  AllValues c ('(k, v) ': schema) = (c v, AllValues c schema)
+
 -- | Delete a key from a 'Schema'.
 type family DeleteKey (k :: key) (schema :: Schema key) :: Schema key where
   DeleteKey k '[] = '[]
@@ -30,8 +39,10 @@ type family DeleteKey (k :: key) (schema :: Schema key) :: Schema key where
   DeleteKey k ('(x, v) ': schema) = DeleteKey k schema
 
 -- | Insert a key in a 'Schema' preserving the order of the keys.
+-- If the key is already present with the same value type then @schema@ remains unchanged.
 type family Insert (k :: key) (v :: Type) (schema :: Schema key) :: Schema key where
   Insert k v '[] = '[ '(k, v) ]
+  Insert k v ('(k, v) ': schema) = '(k, v) ': schema
   Insert k v ('(x, y) ': schema) = If (k > x) ('(x, y) ': Insert k v schema) ('(k, v) ': '(x, y) ': schema)
 
 -- | Merge two sorted 'Schema's.
@@ -51,7 +62,10 @@ type family SortKeys (schema :: Schema key) :: Schema key where
 type Unord schema = SortKeys schema
 
 -- | Compare two types.
-type family Compare x y :: Ordering
+type family Compare (x :: k1) (y :: k2) :: Ordering
+
+type instance Compare (x :: Symbol) (y :: Symbol) = CmpSymbol x y
+type instance Compare (x :: Nat)    (y :: Nat)    = CmpNat    x y
 
 -- | A type-level case for 'Ordering'.
 type family CaseOrdering o l e g where
